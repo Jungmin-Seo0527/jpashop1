@@ -197,4 +197,112 @@ public class Main {
 > MN    
 > 단순하게 외래키를 엔티티의 필드로 지정하면 외래키에 해당하는 엔티티를 조회할 때 외래키로 엔티티를 조회했다. 하지만 연관관계를 지정해 주니 연관관계의 엔티티를 조회하지 않아도 Member 엔티티 만으로 Team엔티티를 조회할 수 있다.
 
+### 4-3. 양방향 연관관계와 연관관계의 주인1 - 기본
+
+#### 양방향 매핑
+
+![](https://i.ibb.co/yn8FS3r/bandicam-2021-07-15-15-33-15-447.jpg)
+
+##### Member.java
+
+* 코드는 단방향과 동일하다.
+* 문제는 `Team`엔티티에서 연관관계에 있는 `Member`엔티티 정보의 유무이다.
+
+```java
+import javax.persistence.*;
+
+@Entity
+public class Member {
+
+    @Id @GeneratedValue
+    private Long id;
+
+    @Column(name = "USERNAME")
+    private String name;
+
+    // @Column(name = "TEAM_ID")
+    // private Long teamId;
+
+    @ManyToOne
+    @JoinColumn(name = "TEAD_ID")
+    private Team team;
+}
+```
+
+##### Team.java - 컬렉션 추가
+
+```java
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.OneToMany;
+
+@Entity
+public class Team {
+
+    @Id @GeneratedValue
+    private Long id;
+    private String name;
+
+    @OneToMany(mappedBy = "team")
+    List<Member> members = new ArrayList<>();
+}
+```
+
+##### Main.java - 양방향 조회
+
+```java
+public class Main {
+    public static void main(String[] args) {
+
+        // 조회
+        Team findTeam = em.find(Team.class, team.getId());
+        int memberSize = findTeam.getMembers().size()
+    }
+}
+```
+
+#### 연관관계의 주인과 mappedBy
+
+* `mappedBy`: JPA 멘탈붕괴 난이도
+* `mappedBy`는 처음에는 이해하기 어렵다.
+* 객체와 테이블간에 연관관계를 맺는 차이를 이해해야 한다.
+
+##### 객체와 테이블이 관계를 맺는 차이
+
+* **객체 연관관계 = 2개**
+    * 회원 -> 팀 연관관계 1개(단방향)
+    * 팀 -> 회원 연관관계 1개(단방향)
+
+* **테이블 연관관계 = 1개**
+    * 회원 < - > 팀의 연관과계 1개(양방향)
+
+* 객체의 **양방향 관계는 사실 양방향 관계가 아니라 서로 다른 단방향 관계 2개이다.**
+* 객체를 양방향으로 참조하려면 **단방향 연관관계를 2개**만들어야 한다.
+* 테이블은 **외래키 하나**로 두 테이블의 연관관계를 관리한다.
+
+#### 연관관계의 주인(Owner)
+
+* 양방향 매핑 규칙
+    * 객체의 두 관계중 하나를 연관관계의 주인으로 지정
+    * **연관관계의 주인만이 외래 키를 관리(등록, 수정)**
+    * **주인이 아닌쪽은 읽기만 가능**
+    * 주인은 mappedBy 속성 사용X
+    * 주인이 아니면 mappedBy 속성으로 주인 지정
+
+* 누구를 주인으로 하는가?
+    * 외래 키가 있는 곳을 주인으로 정해라
+    * 여기서는 `Member.team`이 연관관계의 주인
+
+> MN    
+> 간단하게 생각하면 된다. 결국 서로 같은 개념을 매핑하는 것이다!!   
+> 일대다 관계에서 관계형 DB는 `일`에 해당하는 테이블에서 `다`의 기본키를 외래키로 가진다. 따라서 `일`의 외래키와 `다`의 기본키가 같은 컬럼을 조인해서 서로 일치하는 컬럼들을 조회할 수 있다.       
+> 
+> 이전에는 `일`의 외래키에 해당하는 필드를 `teamId`로 지정했다. 이러다 보니 조회를 할 때 `teamId`로 `Team`엔티티를 다시 조회해야 했다. `Member`엔티티 자체에서 `Team`객체가 있으면 좋겠다는 생각이 들어서 외래키로 `teamId`대신에 `Team`객체 통체로 주입했다.
+>
+> 여기까지 오면 `Member`엔티티 입장에서는 `Team`엔티티가 주입되어 있으므로 바로 조회가 가능하다. 하지만 양방향 관계인 경우 `Team`엔티티 입장에서는 `Member`에 대한 정보가 전혀 없다. 따라서 컬렉션으로 `Member` 엔티티를 저장한다. 여기서 컬렉션으로 여러 `Member`엔티티를 저장하는 이유는 `Team`엔티티가 `다`이기 때문이다.(선수는 하나의 팀에만 속할 수 있고, 팀은 여러 선수로 이루어져 있다.)     
+> 여기서 끝나지 않고 `Team`입장에서는 `Member`객체의 어떤 필드로 자신과의 연관관계를 정의할 수 있는지 알고 있어야 한다. 즉 자신과 관계를 가지는 `Member`엔티티에서 외래키가 무엇인지 알고 있어야 한다. 그래서 `mappedBy`를 이용해서 `Member`엔티티의 `team`필드가 외래키임을 명시해 준다.
+>
+> 그리고 연관관계 주인은 외래키를 가지고 있는 엔티티를 주인으로 설정한다. 결국 관계의 핵심은 외래키이다. 그리고 그 핵심을 가지고 있는 엔티티를 연관관계의 주인으로 알고 있으면 된다. (아마 연관관계 주인 메소드에서 연관관계 메소드를 생성하겠지...)
+
 ## Note
