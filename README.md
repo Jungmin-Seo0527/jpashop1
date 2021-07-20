@@ -229,4 +229,18 @@ query.setParameter(1, usernameParam);
         * 패키지 명을 포함한 전체 클래스 명 입력
         * 순서와 타입이 일치하는 생성자 필요
 
+### 9-4. 페이징 API
+
+* JPA는 페이징을 다음 두 API로 추상화
+* `setFirstResult(int startPosition)`: 조회 시작 위치 (0부터 시작)
+* `setMaxResults(int maxResult)`: 조회할 데이터 수
+
+```
+String jpql = "select m from Member m order by m.name desc";
+List<Member> resultList = em.createQuery(jpql., Member.class);
+        .setFirstResult(10)
+        .setMaxResult(20)
+        .getResultList();
+```
+
 ## Note
